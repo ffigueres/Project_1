@@ -1,0 +1,72 @@
+---
+title: 'Project 1: Extracting Data from Text'
+author: "Fernando Figueres"
+subtitle: DATA-607, Spring 2019
+---
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(error = TRUE)
+```
+
+```{r, warning=FALSE,message=FALSE}
+#Load libraries
+invisible(library(dplyr))
+invisible(library(stringr))
+```
+
+##Load the file into a data frame
+```{r}
+#Load file into data frame
+df1 <- read.table("tournamentinfo.txt", sep = "|",fill = TRUE) 
+
+#Remove spacer rows
+df1 <- df1[!grepl("--------", df1[,1]),] 
+
+#Put state and score values in same rows
+df1$state <- lead(df1$V1,1)
+df1$V11 <- lead(df1$V2,1)
+
+#Remove unused rows
+df1 <- subset(df1,!str_detect(df1$V1,"[A-Z][A-Z]"))
+df1 <- df1[-c(1, 2), ]
+
+#Remove unused columns
+rownames(df1) <- NULL
+df1$V1 <- NULL
+
+#Remove whitespace in names and state
+df1$V2 <- str_squish(df1$V2)
+df1$state <- str_squish(df1$state)
+
+#Calculate scores
+df1$V11 <- as.numeric(str_extract(df1$V11,"(?<=R:\\s{0,5})\\d+"))
+
+#Extract opponent code
+df1[,3:9] = lapply(df1[,3:9], function(i) as.numeric(str_extract(i,"(?<=[A-Z]\\s{0,5})\\d+")))
+
+#Covert scores to numbers
+df1$V3 <- as.numeric(as.character(df1$V3))
+
+#Load opponent scores on separate columns
+df1[,12:18] = lapply(df1[,3:9], function(i) df1$V11[i])
+
+#Add means 
+df1$mean <- round(rowMeans(df1[,12:18],na.rm = TRUE), digits = 0)
+```
+
+##Extract the required variables
+```{r}
+# Create data frame with the variables of interest
+myvars <- c("V2", "state","V3","V11", "mean")
+tresults <- df1[myvars]
+names(tresults) <- c("name","state","tot_points","pre-rating","avg_opp_pre-rating")
+
+head(tresults)
+```
+
+##Create the CSV file
+```{r}
+#Create a CSV file with the results
+write.csv(tresults, file = "tresults.csv")
+```
+
